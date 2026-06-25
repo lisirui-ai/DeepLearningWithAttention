@@ -1,0 +1,2 @@
+# DeepLearningForTranslation
+基于深度学习实现seq2seq与transformer，完成NLP中的翻译任务
