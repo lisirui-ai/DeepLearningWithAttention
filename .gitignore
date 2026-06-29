@@ -219,3 +219,8 @@ __marimo__/
 
 data/cache
 model_checkpoints/
+
+# wmt16 数据集：忽略除 .de 和 .en 以外的所有文件
+data/wmt16/*
+!data/wmt16/*.de
+!data/wmt16/*.en
