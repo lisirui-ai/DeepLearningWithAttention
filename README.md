@@ -37,7 +37,7 @@
 | #   | Notebook                                        | 核心技术                                                              | 亮点                        |
 | --- | ----------------------------------------------- | ----------------------------------------------------------------- | ------------------------- |
 | 1   | Seq2Seq 翻译 + Bahdanau Attention                 | Seq2Seq · GRU · Bahdanau Attention · 子词级分词                        | 经典注意力机制 · 西班牙语→英语翻译       |
-| 2   | Transformer 翻译 + Multi-Head Scaled Dot-Product | Transformer · 多头缩放点积注意力 · Token 级批次 · SentencePiece BPE · WMT16 · 束搜索解码 | 完整 Transformer 架构 · 束搜索解码 · 德语→英语翻译 |
+| 2   | Transformer 翻译 + Multi-Head Scaled Dot-Product | Transformer · 多头缩放点积注意力 · RoPE 旋转位置编码 · Token 级批次 · SentencePiece BPE · WMT16 Multi30K · 束搜索解码 | 完整 Transformer 架构 · RoPE · 束搜索解码 · 德语→英语翻译 |
 
 
 ---
@@ -110,20 +110,22 @@ DeepLearningWithAttention/
 
 > `2.transformer_translation_SubwordLevelTokenization_TokenLevelBatching_MultiHeadScaledDotProductAttention.ipynb`
 
-从零手动复现完整 **Transformer** 架构，涵盖多头缩放点积自注意力（Multi-Head Scaled Dot-Product Attention）、**GEGLU 激活前馈网络**、**Pre-LayerNorm**、掩码机制、编码器/解码器堆叠，在 WMT16 德语→英语翻译任务上完成训练。引入 **Token 级动态批次（Token-Level Batching）** 策略，按 Token 总数而非句子数组批，提升 GPU 利用率。使用 **SentencePiece BPE** 进行联合子词分词。评估阶段采用 **束搜索解码（Beam Search Decoding）** 并分别统计 BLEU-1 与 BLEU-4 指标；最终通过 **端到端翻译器（Translator）** 将分词、推理、去分词封装为单一调用接口。
+从零手动复现完整 **Transformer** 架构，涵盖多头缩放点积自注意力（Multi-Head Scaled Dot-Product Attention）、**RoPE 旋转位置编码**（集成于注意力层，替代传统正弦加法位置编码）、**GEGLU 激活前馈网络**、**Pre-LayerNorm**、掩码机制、编码器/解码器堆叠，在 WMT16 Multi30K 德语→英语翻译任务上完成训练（29,000 训练句对，d_model=256，4+4 层，4 头）。引入 **Token 级动态批次（Token-Level Batching）** 策略，按 Token 总数而非句子数组批，提升 GPU 利用率。使用 **SentencePiece BPE** 进行联合子词分词。评估阶段采用 **束搜索解码（Beam Search Decoding，beam=4，length_penalty=0.6）** 并分别统计 BLEU-1（0.6318）与 BLEU-4（0.3016）指标；最终通过 **端到端翻译器（Translator）** 将分词、推理、去分词封装为单一调用接口。
 
 
 | 章节       | 内容                                                                                     |
 | -------- | -------------------------------------------------------------------------------------- |
 | 环境导入     | 依赖库导入 · 设备检测                                                                            |
 | 数据集准备    | WMT16 加载 · SentencePiece BPE 分词 · Token 级批次采样 · NumPy 缓存 · DataLoader                 |
-| 构建模型     | 词嵌入层（含位置编码） · 缩放点积多头注意力 · GEGLU 前馈网络 · Pre-LayerNorm · 掩码机制 · 编码器 · 解码器 · 完整 Transformer |
+| 构建模型     | 词嵌入层 · RoPE 旋转位置编码（集成于注意力层） · 缩放点积多头注意力 · GEGLU 前馈网络 · Pre-LayerNorm · 掩码机制 · 编码器 · 解码器 · 完整 Transformer |
 | 模型训练     | 标签平滑损失 · Noam Warmup 学习率调度 · AdamW 优化器 · TensorBoard 回调 · 训练与验证主循环 · 最优模型保存           |
 | 模型评估     | 束搜索解码（beam_size 可调） · BLEU-1 · BLEU-4（论文标准指标） · 翻译样例展示                               |
 | 端到端翻译    | Translator 封装 · 分词 → 束搜索推理 → 去分词完整管线 · 单句翻译演示                                        |
 
 
 > **Scaled Dot-Product Attention 原理** · 将查询矩阵 Q 与键矩阵 K 的点积除以 `√d_k` 进行缩放，避免维度过高时点积值过大导致 Softmax 梯度消失，再对值矩阵 V 加权求和：`Attention(Q,K,V) = softmax(QKᵀ / √d_k) · V`。**多头注意力**将 Q/K/V 投影到 h 个子空间并行计算注意力，拼接后再线性变换，使模型同时关注不同位置的多种语义关系。
+>
+> **RoPE 旋转位置编码原理** · 将位置信息以旋转矩阵的形式注入 Q/K，每两个相邻维度视为复数对并乘以旋转角 θ_{m,i}=m×base^(-2i/d)，旋转后的 Q·Kᵀ 点积天然包含两者的相对位置差，无需在嵌入层加法注入位置信息，也无须额外可学习参数。与传统正弦位置编码相比，RoPE 在相对位置感知上更具优势（本模型 base=500，max_length=90）。
 >
 > **Beam Search 解码原理** · 推理阶段同时维护 `beam_size` 条候选序列，每步对每条路径展开整个词表并取累计对数概率最高的 Top-K 路径延续搜索；生成 EOS 的序列转入完成队列并施加长度惩罚，最终从完成序列中选取归一化得分最高者作为输出。相比贪心解码（beam=1）在标准测试集上通常可提升 **+2~4 BLEU**，且无需重新训练模型。
 >
@@ -152,9 +154,9 @@ DeepLearningWithAttention/
 | 属性   | 详情                                          |
 | ---- | ------------------------------------------- |
 | 语言对  | 德语 → 英语                                     |
-| 训练集  | 约 4,500,000 句对                              |
-| 验证集  | newstest2013（约 3,000 句对）                    |
-| 测试集  | newstest2014（约 3,003 句对）                    |
+| 训练集  | 约 29,000 句对（Multi30K）                      |
+| 验证集  | Multi30K val2016（约 1,014 句对）               |
+| 测试集  | Multi30K test2016（约 1,000 句对）              |
 | 分词方式 | SentencePiece BPE 联合词表                      |
 | 最大长度 | 截断至 512 Token                               |
 | 缓存   | 首次运行后自动生成至 `data/wmt16/cache/*.npy`（gitignored） |
@@ -167,11 +169,12 @@ DeepLearningWithAttention/
 
 ```
 Notebook 1                          Notebook 2
-Spa-Eng 翻译                →        WMT16 De-En 翻译
-Seq2Seq + GRU                        Transformer
+Spa-Eng 翻译                →        WMT16 Multi30K De-En 翻译
+Seq2Seq + GRU                        Transformer（d_model=256，4+4 层，4 头）
 Bahdanau Attention                   Multi-Head Scaled Dot-Product Attention
-（加性注意力 · 经典 RNN 架构）             Token-Level Batching · SentencePiece BPE
-                                     Beam Search Decoding
+（加性注意力 · 经典 RNN 架构）             RoPE 旋转位置编码（集成于注意力层）
+                                     Token-Level Batching · SentencePiece BPE
+                                     Beam Search Decoding（BLEU-1=0.6318 / BLEU-4=0.3016）
                                      （自注意力 · 纯注意力架构）
 ```
 
