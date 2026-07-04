@@ -194,10 +194,10 @@ Bahdanau Attention                   Multi-Head Scaled Dot-Product Attention
 | `numpy`         | 2.4.6        | 数值计算 · 数据缓存（`.npy`）                      |
 | `pandas`        | 3.0.3        | 数据读取与管理（Notebook 1）                      |
 | `tqdm`          | 4.68.2       | 训练进度条显示                                  |
-| `nltk`          | —            | BLEU 分数计算（两个 Notebook 均使用）               |
-| `subword_nmt`   | —            | BPE 子词分词器训练与应用（Notebook 1）               |
-| `sentencepiece` | —            | SentencePiece BPE 子词分词（Notebook 2）       |
-| `sacremoses`    | —            | Moses 分词 / 去分词（Notebook 2）               |
+| `nltk`          | 3.9.4        | BLEU 分数计算（两个 Notebook 均使用）               |
+| `subword-nmt`   | 0.3.8        | BPE 子词分词器训练与应用（Notebook 1）               |
+| `sentencepiece` | 0.2.1        | SentencePiece BPE 子词分词（Notebook 2）       |
+| `sacremoses`    | 0.1.1        | Moses 分词 / 去分词（Notebook 2）               |
 
 
 ---
