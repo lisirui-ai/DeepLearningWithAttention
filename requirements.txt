@@ -1,0 +1,11 @@
+matplotlib                3.10.9
+matplotlib-inline         0.2.2
+nltk                      3.9.4
+numpy                     2.4.6
+pandas                    3.0.3
+sacremoses                0.1.1
+sentencepiece             0.2.1
+subword-nmt               0.3.8
+tensorboard               2.20.0
+tensorboard-data-server   0.7.2
+tqdm                      4.68.2
