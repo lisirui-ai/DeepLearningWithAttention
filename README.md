@@ -77,7 +77,8 @@ DeepLearningWithAttention/
 │
 ├── 📄 .gitignore
 ├── 📄 LICENSE
-└── 📄 README.md
+├── 📄 README.md
+└── 📄 requirements.txt        # 项目依赖清单
 ```
 
 ---
