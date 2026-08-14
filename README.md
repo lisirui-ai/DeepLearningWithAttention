@@ -207,7 +207,7 @@ Bahdanau Attention                   Multi-Head Scaled Dot-Product Attention
 **1. 克隆仓库**
 
 ```bash
-git clone https://github.com/your-username/DeepLearningWithAttention.git
+git clone git@github.com:lisirui-ai/DeepLearningWithAttention.git
 cd DeepLearningWithAttention
 ```
 
