@@ -8,6 +8,7 @@
   <img src="https://img.shields.io/badge/CUDA-13.2-76B900?style=flat-square&logo=nvidia&logoColor=white" />
   <img src="https://img.shields.io/badge/Dataset-Spa--Eng-FF6F00?style=flat-square&logo=google&logoColor=white" />
   <img src="https://img.shields.io/badge/Dataset-WMT16%20De--En-FF6F00?style=flat-square&logo=kaggle&logoColor=white" />
+  <img src="https://img.shields.io/badge/PyTorch-nn.Transformer-EE4C2C?style=flat-square&logo=pytorch&logoColor=white" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" />
 </p>
 
@@ -38,6 +39,7 @@
 | --- | ----------------------------------------------- | ----------------------------------------------------------------- | ------------------------- |
 | 1   | Seq2Seq 翻译 + Bahdanau Attention                 | Seq2Seq · GRU · Bahdanau Attention · 子词级分词                        | 经典注意力机制 · 西班牙语→英语翻译       |
 | 2   | Transformer 翻译 + Multi-Head Scaled Dot-Product | Transformer · 多头缩放点积注意力 · RoPE 旋转位置编码 · Token 级批次 · SentencePiece BPE · WMT16 Multi30K · 束搜索解码 | 完整 Transformer 架构 · RoPE · 束搜索解码 · 德语→英语翻译 |
+| 3   | PyTorch nn.Transformer 接口讲解：Encoder 与 Decoder | nn.Transformer · nn.TransformerEncoder · nn.TransformerDecoder · nn.MultiheadAttention · 掩码设计对比 | TorchAPI 与手写实现的掩码差异解析 · 仅讲解 API 用法 |
 
 
 ---
@@ -49,6 +51,7 @@ DeepLearningWithAttention/
 ├── 📓 1.seq2seq_translation_SubwordLevelTokenization_BahdanauAttention.ipynb
 ├── 📓 2.transformer_translation_..._MultiHeadScaledDotProductAttention.ipynb
 │         (全名见下方 Notebook 介绍)
+├── 📓 3.transformer_TorchAPI_encoder_decoder.ipynb
 │
 ├── 📂 data/
 │   ├── spa.txt                    # [已提供] 西班牙语-英语平行语料（Notebook 1）
@@ -134,6 +137,30 @@ DeepLearningWithAttention/
 
 ---
 
+### 3.PyTorch nn.Transformer 接口讲解：Encoder 与 Decoder 的使用
+
+> `3.transformer_TorchAPI_encoder_decoder.ipynb`
+
+本 Notebook 专注于讲解如何直接使用 PyTorch 内置的 **`nn.Transformer`**、**`nn.TransformerEncoder`**、**`nn.TransformerDecoder`** 三套官方接口，并深入解析这些接口的**掩码（mask）设计哲学**与 Notebook 2 手写实现版本的差异与原因。不包含完整训练流程，侧重 API 用法与关键概念理解。
+
+
+| 章节                                    | 内容                                                                                                    |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 环境准备                                  | 依赖库导入 · 设备检测（CPU / GPU）                                                                               |
+| 掩码设计的核心差异：nn.Transformer vs 手写实现     | 手写实现掩码形状 `(batch, 1, seq_q, seq_k)` · TorchAPI 掩码拆分为 `_mask` 与 `_key_padding_mask` 两类 · bool 语义差异对比 |
+| 掩码形状对比可视化                             | 因果掩码 · Padding 掩码可视化对比图                                                                               |
+| nn.TransformerEncoder 使用讲解            | `nn.TransformerEncoderLayer` 参数说明 · `nn.TransformerEncoder` 堆叠 · `src_key_padding_mask` 使用方式          |
+| nn.TransformerDecoder 使用讲解            | `nn.TransformerDecoderLayer` 参数说明 · `tgt_mask` 因果掩码 · `memory_key_padding_mask` 用法                   |
+| nn.Transformer（完整 Encoder-Decoder）讲解 | `nn.Transformer` 完整接口 · 五类掩码参数总览 · 内部广播机制解析                                                          |
+| 接入线性分类头：从特征到词汇概率                      | 在 Transformer 输出后接 `nn.Linear` 得到 logits · 与训练损失衔接示意                                                  |
+| 掩码差异总结对照表                             | 手写实现 vs TorchAPI 掩码形状 · bool 语义 · 维度广播方式全面对比                                                          |
+| 关键结论                                  | 两种实现路线的设计哲学总结 · 选型建议                                                                                  |
+
+
+> **掩码设计哲学差异** · Notebook 2 手写实现中 `attn_mask` 形状为 `(batch, 1, seq_q, seq_k)`，`True` 表示**遮盖**；PyTorch 官方 `nn.Transformer` 将掩码拆分为 `_mask`（无 batch 维，描述位置可见关系，全样本共享）与 `_key_padding_mask`（含 batch 维，描述数据相关的 padding 位置），两类掩码在底层调用 `F.scaled_dot_product_attention` 前自动合并，且 `F.sdpa` 中 bool 掩码 `True = 保留`，与 `nn.Transformer` 外部接口语义**相反**，转换由框架内部透明处理。
+
+---
+
 ## 🗃 数据集
 
 **Spa-Eng** · 西班牙语-英语平行语料
@@ -169,17 +196,17 @@ DeepLearningWithAttention/
 ## 🛤 学习路径
 
 ```
-Notebook 1                          Notebook 2
-Spa-Eng 翻译                →        WMT16 Multi30K De-En 翻译
-Seq2Seq + GRU                        Transformer（d_model=256，4+4 层，4 头）
-Bahdanau Attention                   Multi-Head Scaled Dot-Product Attention
-（加性注意力 · 经典 RNN 架构）             RoPE 旋转位置编码（集成于注意力层）
-                                     Token-Level Batching · SentencePiece BPE
+Notebook 1                          Notebook 2                          Notebook 3
+Spa-Eng 翻译                →        WMT16 Multi30K De-En 翻译      →    PyTorch TorchAPI 讲解
+Seq2Seq + GRU                        Transformer（d_model=256，4+4 层，4 头）  nn.Transformer
+Bahdanau Attention                   Multi-Head Scaled Dot-Product Attention  nn.TransformerEncoder
+（加性注意力 · 经典 RNN 架构）             RoPE 旋转位置编码（集成于注意力层）           nn.TransformerDecoder
+                                     Token-Level Batching · SentencePiece BPE  掩码设计哲学 · API vs 手写对比
                                      Beam Search Decoding（BLEU-1=0.6318 / BLEU-4=0.3016）
-                                     （自注意力 · 纯注意力架构）
+                                     （自注意力 · 纯注意力架构）                （仅 API 用法 · 无训练流程）
 ```
 
-建议按编号顺序学习，先掌握经典注意力机制（Notebook 1），再深入理解完整 Transformer 架构（Notebook 2）。
+建议按编号顺序学习，先掌握经典注意力机制（Notebook 1），再深入理解完整 Transformer 架构（Notebook 2），最后通过 Notebook 3 对比官方接口与手写实现的设计差异，加深对掩码机制的理解。
 
 ---
 
