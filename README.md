@@ -9,11 +9,13 @@
   <img src="https://img.shields.io/badge/Dataset-Spa--Eng-FF6F00?style=flat-square&logo=google&logoColor=white" />
   <img src="https://img.shields.io/badge/Dataset-WMT16%20De--En-FF6F00?style=flat-square&logo=kaggle&logoColor=white" />
   <img src="https://img.shields.io/badge/PyTorch-nn.Transformer-EE4C2C?style=flat-square&logo=pytorch&logoColor=white" />
+  <img src="https://img.shields.io/badge/PyTorch-nn.MultiheadAttention-EE4C2C?style=flat-square&logo=pytorch&logoColor=white" />
+  <img src="https://img.shields.io/badge/PyTorch-F.scaled__dot__product__attention-EE4C2C?style=flat-square&logo=pytorch&logoColor=white" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" />
 </p>
 
 <p>基于 PyTorch 的注意力机制机器翻译实战系列</p>
-<p>以 <b>Seq2Seq + Bahdanau Attention → Transformer + Multi-Head Attention</b> 为主线，循序渐进演示从经典注意力到自注意力机制的完整翻译流程</p>
+<p>以 <b>Seq2Seq + Bahdanau Attention → Transformer + Multi-Head Attention → PyTorch 官方注意力接口</b> 为主线，循序渐进演示从经典注意力到自注意力机制的完整翻译流程，并深入解析官方 API 的用法与掩码设计</p>
 <p>每个 Notebook 均配有详细中文注释，适合自然语言处理与注意力机制入门与进阶学习</p>
 
 </div>
@@ -40,6 +42,7 @@
 | 1   | Seq2Seq 翻译 + Bahdanau Attention                 | Seq2Seq · GRU · Bahdanau Attention · 子词级分词                        | 经典注意力机制 · 西班牙语→英语翻译       |
 | 2   | Transformer 翻译 + Multi-Head Scaled Dot-Product | Transformer · 多头缩放点积注意力 · RoPE 旋转位置编码 · Token 级批次 · SentencePiece BPE · WMT16 Multi30K · 束搜索解码 | 完整 Transformer 架构 · RoPE · 束搜索解码 · 德语→英语翻译 |
 | 3   | PyTorch nn.Transformer 接口讲解：Encoder 与 Decoder | nn.Transformer · nn.TransformerEncoder · nn.TransformerDecoder · nn.MultiheadAttention · 掩码设计对比 | TorchAPI 与手写实现的掩码差异解析 · 仅讲解 API 用法 |
+| 4   | PyTorch 注意力接口讲解：nn.MultiheadAttention 与 F.scaled_dot_product_attention | nn.MultiheadAttention · F.scaled_dot_product_attention · 自注意力 · 交叉注意力 · 掩码 bool 语义差异 | 两套注意力接口深度对比 · bool 掩码语义完全相反 · 自/交叉注意力演示 · 仅讲解 API 用法 |
 
 
 ---
@@ -52,6 +55,7 @@ DeepLearningWithAttention/
 ├── 📓 2.transformer_translation_..._MultiHeadScaledDotProductAttention.ipynb
 │         (全名见下方 Notebook 介绍)
 ├── 📓 3.transformer_TorchAPI_encoder_decoder.ipynb
+├── 📓 4.attention_TorchAPI.ipynb
 │
 ├── 📂 data/
 │   ├── spa.txt                    # [已提供] 西班牙语-英语平行语料（Notebook 1）
@@ -161,6 +165,28 @@ DeepLearningWithAttention/
 
 ---
 
+### 4.PyTorch 注意力接口讲解：nn.MultiheadAttention 与 F.scaled_dot_product_attention
+
+> `4.attention_TorchAPI.ipynb`
+
+本 Notebook 专注于讲解 PyTorch 内置的两套注意力计算接口：**`nn.MultiheadAttention`**（高层模块，内置 Q/K/V/O 四个线性投影层，直接接收原始序列嵌入）与 **`F.scaled_dot_product_attention`**（底层函数式接口，只负责缩放点积注意力的纯粹计算，不含任何可学习参数）。深入解析参数含义、形状约定、自/交叉注意力用法以及两套接口的掩码 bool 语义差异。不包含完整训练流程，侧重 API 用法与关键概念理解。读者需对多头注意力机制有基本了解（可参阅 Notebook 2/3）。
+
+
+| 章节                                    | 内容                                                                                                    |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 环境准备                                  | 依赖库导入 · 设备检测（CPU / GPU）                                                                               |
+| 接口体系概览                                | 调用链（MHA → 线性投影 → 分头 → SDPA → 合并多头） · 职责划分 · 使用场景对比（标准 Transformer / 自定义变体 / 可视化 / 性能敏感）          |
+| nn.MultiheadAttention 详解              | 构造函数参数 · `forward` 接口 · 自注意力示例 · 交叉注意力（`kdim` / `vdim`） · `attn_mask` 与 `key_padding_mask` · `need_weights` 返回注意力权重 |
+| F.scaled_dot_product_attention 详解     | 接口说明与形状约定 · 自动内核选择（Flash Attention / Memory-Efficient） · `is_causal` 因果掩码 · 自定义 `attn_mask`（bool 与 float） |
+| 两种接口的掩码 bool 语义差异                    | `True = 忽略` vs `True = 保留` · 内部 `~mask` 取反机制 · 实验验证两者语义确实相反                                          |
+| 接口对比总结                                | 模块类型 · 输入/输出形状 · 掩码语义 · padding 掩码 · Flash Attention 支持 · 选型建议                                    |
+| 关键结论                                  | 接口层次关系 · 掩码语义陷阱 · 输入形状差异 · 选型决策建议                                                                    |
+
+
+> **掩码 bool 语义差异** · `nn.MultiheadAttention` 中 bool 掩码 `True = 忽略/遮盖`；`F.scaled_dot_product_attention` 中 bool 掩码 `True = 保留`。前者内部调用后者前会对 bool 掩码做一次取反（`~mask`），因此对外暴露的语义完全相反。混用会导致掩码效果全面反转，是使用 PyTorch 注意力接口时最常见的 Bug 来源。
+
+---
+
 ## 🗃 数据集
 
 **Spa-Eng** · 西班牙语-英语平行语料
@@ -196,17 +222,27 @@ DeepLearningWithAttention/
 ## 🛤 学习路径
 
 ```
-Notebook 1                          Notebook 2                          Notebook 3
-Spa-Eng 翻译                →        WMT16 Multi30K De-En 翻译      →    PyTorch TorchAPI 讲解
-Seq2Seq + GRU                        Transformer（d_model=256，4+4 层，4 头）  nn.Transformer
-Bahdanau Attention                   Multi-Head Scaled Dot-Product Attention  nn.TransformerEncoder
-（加性注意力 · 经典 RNN 架构）             RoPE 旋转位置编码（集成于注意力层）           nn.TransformerDecoder
-                                     Token-Level Batching · SentencePiece BPE  掩码设计哲学 · API vs 手写对比
+Notebook 1                          Notebook 2
+Spa-Eng 翻译                →        WMT16 Multi30K De-En 翻译
+Seq2Seq + GRU                        Transformer（d_model=256，4+4 层，4 头）
+Bahdanau Attention                   Multi-Head Scaled Dot-Product Attention
+（加性注意力 · 经典 RNN 架构）             RoPE 旋转位置编码（集成于注意力层）
+                                     Token-Level Batching · SentencePiece BPE
                                      Beam Search Decoding（BLEU-1=0.6318 / BLEU-4=0.3016）
-                                     （自注意力 · 纯注意力架构）                （仅 API 用法 · 无训练流程）
+                                     （自注意力 · 纯注意力架构）
+
+                ↓                                           ↓
+
+Notebook 3                          Notebook 4
+PyTorch nn.Transformer 讲解  →       PyTorch 注意力接口讲解
+nn.Transformer                       nn.MultiheadAttention
+nn.TransformerEncoder                F.scaled_dot_product_attention
+nn.TransformerDecoder                自注意力 · 交叉注意力
+掩码设计哲学 · API vs 手写对比           掩码 bool 语义差异（True 语义完全相反）
+（仅 API 用法 · 无训练流程）            （仅 API 用法 · 无训练流程）
 ```
 
-建议按编号顺序学习，先掌握经典注意力机制（Notebook 1），再深入理解完整 Transformer 架构（Notebook 2），最后通过 Notebook 3 对比官方接口与手写实现的设计差异，加深对掩码机制的理解。
+建议按编号顺序学习：先掌握经典注意力机制（Notebook 1），再深入理解完整 Transformer 架构（Notebook 2），然后通过 Notebook 3 对比官方 `nn.Transformer` 与手写实现的掩码设计差异，最后通过 Notebook 4 掌握 `nn.MultiheadAttention` 与 `F.scaled_dot_product_attention` 两套注意力接口的用法与掩码语义差异。
 
 ---
 
@@ -215,13 +251,13 @@ Bahdanau Attention                   Multi-Head Scaled Dot-Product Attention  nn
 
 | 包名              | 版本           | 用途                                       |
 | --------------- | ------------ | ---------------------------------------- |
-| `torch`         | 2.12.0+cu132 | 深度学习框架核心（CUDA 13.2）                      |
-| `tensorboard`   | 2.20.0       | 训练过程实时可视化（两个 Notebook 均使用）               |
-| `matplotlib`    | 3.10.9       | 注意力权重热力图 · 训练曲线绘制                        |
+| `torch`         | 2.12.0+cu132 | 深度学习框架核心（CUDA 13.2；全部 Notebook 均使用）     |
+| `tensorboard`   | 2.20.0       | 训练过程实时可视化（Notebook 1、2）                  |
+| `matplotlib`    | 3.10.9       | 注意力权重热力图 · 训练曲线绘制（Notebook 1、2）         |
 | `numpy`         | 2.4.6        | 数值计算 · 数据缓存（`.npy`）                      |
 | `pandas`        | 3.0.3        | 数据读取与管理（Notebook 1）                      |
-| `tqdm`          | 4.68.2       | 训练进度条显示                                  |
-| `nltk`          | 3.9.4        | BLEU 分数计算（两个 Notebook 均使用）               |
+| `tqdm`          | 4.68.2       | 训练进度条显示（Notebook 1、2）                     |
+| `nltk`          | 3.9.4        | BLEU 分数计算（Notebook 1、2）                     |
 | `subword-nmt`   | 0.3.8        | BPE 子词分词器训练与应用（Notebook 1）               |
 | `sentencepiece` | 0.2.1        | SentencePiece BPE 子词分词（Notebook 2）       |
 | `sacremoses`    | 0.1.1        | Moses 分词 / 去分词（Notebook 2）               |
@@ -248,8 +284,9 @@ pip install -r requirements.txt
 
 **3. 准备数据集**
 
-- **Spa-Eng**：`data/spa.txt` 已随仓库提供，无需额外下载。
-- **WMT16 De-En**：`data/wmt16/*.de` 与 `*.en` 原始语料已随仓库提供。`spm_joint_bpe.model`、`*.bpe`、`*.cut.txt` 及 NumPy 缓存在首次运行 Notebook 时自动生成。
+- **Spa-Eng**（Notebook 1）：`data/spa.txt` 已随仓库提供，无需额外下载。
+- **WMT16 De-En**（Notebook 2）：`data/wmt16/*.de` 与 `*.en` 原始语料已随仓库提供。`spm_joint_bpe.model`、`*.bpe`、`*.cut.txt` 及 NumPy 缓存在首次运行 Notebook 时自动生成。
+- **Notebook 3、4**：纯 API 讲解，无需数据集。
 
 **4. 启动 Jupyter**
 
